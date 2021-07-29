@@ -54,6 +54,10 @@ function delete_cos() {
   cos_json=${CMD_OUT}
   cos_ids=$(echo ${cos_json} | jq -r ".[]|select(.name == \"${INFRA_ID}-cos\").id")
 
+  if [[ -z ${cos_ids} ]]; then
+    echo "No COS found.."
+    return 0
+  fi
   while IFS= read -r id; do
     echo "found COS with $id, deleting it"
     RUN_IBMCLOUD resource service-instance-delete ${id} --force --recursive
