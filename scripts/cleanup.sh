@@ -50,32 +50,31 @@ function IBMCLOUD_logout() {
 
 function delete_cos() {
   echo "deleting the COS instance: ${INFRA_ID}-cos"
-  RUN_IBMCLOUD resource service-instance-delete ${INFRA_ID}-cos --force --recursive
-  echo ${CMD_OUT}
+  RUN_IBMCLOUD resource service-instances --output JSON --service-name cloud-object-storage
+  cos_json=${CMD_OUT}
+  cos_ids=$(echo ${cos_json} | jq -r ".[]|select(.name == \"${INFRA_ID}-cos\").id")
+
+  while IFS= read -r id; do
+    echo "found COS with $id, deleting it"
+    RUN_IBMCLOUD resource service-instance-delete ${id} --force --recursive
+  done <<< "${cos_ids}"
 }
 
 function delete_lbs() {
   echo "deleting the load-balancers:"
 
-  echo "deleting the public load-balancer ${INFRA_ID}-loadbalancer"
   RUN_IBMCLOUD is lbs --output JSON
-  lb_id=$(echo ${CMD_OUT} | jq -r ".[]|select(.name == \"${INFRA_ID}-loadbalancer\").id")
-  if [[ -z "${lb_id}" ]]; then
-    echo "${INFRA_ID}-loadbalancer not found"
-  else
-    echo "${INFRA_ID}-loadbalancer found with ID: ${lb_id}"
-    RUN_IBMCLOUD is load-balancer-delete ${lb_id} --force
-  fi
-
-  echo "deleting the internal load-balancer ${INFRA_ID}-loadbalancer-int"
-  RUN_IBMCLOUD is lbs --output JSON
-  lb_int_id=$(echo ${CMD_OUT} | jq -r ".[]|select(.name == \"${INFRA_ID}-loadbalancer-int\").id")
-  if [[ -z "${lb_int_id}" ]]; then
-    echo "${INFRA_ID}-loadbalancer-int not found"
-  else
-    echo "${INFRA_ID}-loadbalancer-int found with ID: ${lb_int_id}"
-    RUN_IBMCLOUD is load-balancer-delete ${lb_int_id} --force
-  fi
+  lbs_json=${CMD_OUT}
+  for lb in loadbalancer loadbalancer-int;do
+    echo "deleting the load-balancer ${INFRA_ID}-${lb}"
+    lb_id=$(echo ${lbs_json} | jq -r ".[]|select(.name == \"${INFRA_ID}-${lb}\").id")
+    if [[ -z "${lb_id}" ]]; then
+      echo "${INFRA_ID}-${lb} not found"
+    else
+      echo "${INFRA_ID}-${lb} found with ID: ${lb_id}"
+      RUN_IBMCLOUD is load-balancer-delete ${lb_id} --force
+    fi
+  done
 }
 
 function delete_sg() {
@@ -134,9 +133,15 @@ function delete_dns_records() {
   done
 }
 
+function delete_keys() {
+  echo "Deleting the SSH key ${INFRA_ID}-key"
+  RUN_IBMCLOUD pi key-delete ${INFRA_ID}-key
+}
+
 IBMCLOUD_login
 delete_cos
 delete_lbs
 delete_sg
 delete_virtual_servers
 delete_dns_records
+delete_keys
