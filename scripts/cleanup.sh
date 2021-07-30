@@ -18,12 +18,21 @@ if [[ -z "${CLUSTER_NAME}" ]]; then
 fi
 
 if ! command -v ${IBMCLOUD} &> /dev/null; then
-  echo "${IBMCLOUD} could not be found, please install it"
+  echo "${IBMCLOUD} could not be found, please install it, and the power-iaas and infrastructure-service plugins"
   exit
 fi
 
-ibmcloud is || echo "execute: ibmcloud plugin install infrastructure-service" ; exit 1
-ibmcloud sl || echo "execute: ibmcloud plugin install softlayer" ; exit 1
+"${IBMCLOUD}" is &> /dev/null
+if [ $? -ne 0 ] ; then
+  echo "install required ${IBMCLOUD} plugin: ibmcloud plugin install infrastructure-service"
+  exit
+fi
+
+"${IBMCLOUD}" pi &> /dev/null
+if [ $? -ne 0 ] ; then
+  echo "install required ${IBMCLOUD} plugin: ibmcloud plugin install power-iaas"
+  exit
+fi
 
 if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
   echo "IBMCLOUD_API_KEY is not set"
