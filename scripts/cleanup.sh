@@ -3,6 +3,7 @@
 #set -x
 
 IBMCLOUD=${IBMCLOUD:-ibmcloud}
+JQ=${JQ:-jq}
 REGION=${IBM_REGION:-"eu-gb"}
 POWERVS_SERVICE_INSTANCE=${POWERVS_SERVICE_INSTANCE:-"powervs-ipi-lon04"}
 DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
@@ -25,6 +26,11 @@ fi
 
 if ! command -v ${IBMCLOUD} &> /dev/null; then
   echo "${IBMCLOUD} could not be found, please install it, and the power-iaas and infrastructure-service plugins"
+  exit
+fi
+
+if ! command -v ${JQ} &> /dev/null; then
+  echo "${JQ} could not be found, please install it."
   exit
 fi
 
