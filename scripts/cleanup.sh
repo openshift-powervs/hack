@@ -22,6 +22,9 @@ if ! command -v ${IBMCLOUD} &> /dev/null; then
   exit
 fi
 
+ibmcloud is || echo "execute: ibmcloud plugin install infrastructure-service" ; exit 1
+ibmcloud sl || echo "execute: ibmcloud plugin install softlayer" ; exit 1
+
 if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
   echo "IBMCLOUD_API_KEY is not set"
   exit
