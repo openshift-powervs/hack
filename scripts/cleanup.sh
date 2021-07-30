@@ -5,7 +5,8 @@
 IBMCLOUD=${IBMCLOUD:-ibmcloud}
 REGION=${IBM_REGION:-"eu-gb"}
 POWERVS_SERVICE_INSTANCE=${POWERVS_SERVICE_INSTANCE:-"powervs-ipi-lon04"}
-DOMAIN_NAME=${DOMAIN_NAME:-"openshift-on-power.com"}
+DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
+CIS_INSTANCE=${CIS_INSTANCE:-"powervs-ipi-cis"}
 
 if [[ -z "${INFRA_ID}" ]]; then
   echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag"
@@ -17,25 +18,13 @@ if [[ -z "${CLUSTER_NAME}" ]]; then
   exit
 fi
 
-if ! command -v ${IBMCLOUD} &> /dev/null; then
-  echo "${IBMCLOUD} could not be found, please install it, and the power-iaas and infrastructure-service plugins"
-  exit
-fi
-
-"${IBMCLOUD}" is &> /dev/null
-if [ $? -ne 0 ] ; then
-  echo "install required ${IBMCLOUD} plugin: ibmcloud plugin install infrastructure-service"
-  exit
-fi
-
-"${IBMCLOUD}" pi &> /dev/null
-if [ $? -ne 0 ] ; then
-  echo "install required ${IBMCLOUD} plugin: ibmcloud plugin install power-iaas"
-  exit
-fi
-
 if [[ -z "${IBMCLOUD_API_KEY}" ]]; then
   echo "IBMCLOUD_API_KEY is not set"
+  exit
+fi
+
+if ! command -v ${IBMCLOUD} &> /dev/null; then
+  echo "${IBMCLOUD} could not be found, please install it, and the power-iaas and infrastructure-service plugins"
   exit
 fi
 
@@ -51,6 +40,15 @@ function RUN_IBMCLOUD() {
   fi
 }
 
+for plugin in infrastructure-service power-iaas cloud-internet-services;do
+  echo "checking plugin: ${plugin}..."
+  RUN_IBMCLOUD plugin show ${plugin}
+  if [ $? -ne 0 ] ; then
+    echo "plugin required, please install: ${IBMCLOUD} plugin install ${plugin}"
+    exit
+  fi
+done
+
 function IBMCLOUD_login() {
     DONT_PRINT_PARAMS=true RUN_IBMCLOUD login -a cloud.ibm.com --apikey ${IBMCLOUD_API_KEY} -r ${REGION}
 }
@@ -58,7 +56,6 @@ function IBMCLOUD_login() {
 function IBMCLOUD_logout() {
     DONT_PRINT_PARAMS=true RUN_IBMCLOUD logout
 }
-
 
 function delete_cos() {
   echo "deleting the COS instance: ${INFRA_ID}-cos"
@@ -133,7 +130,7 @@ function delete_virtual_servers() {
 }
 
 function delete_dns_records() {
-  echo "Deleting the DNS records"
+  echo "Deleting the DNS records from Classic Infrastructure(Softlayer)"
   RUN_IBMCLOUD sl dns record-list ${DOMAIN_NAME} --output JSON
   dns_json=${CMD_OUT}
   for record in *.apps api-int api;do
@@ -149,6 +146,31 @@ function delete_dns_records() {
   done
 }
 
+function delete_dns_records_cis() {
+  echo "Deleting the DNS records from CIS"
+  RUN_IBMCLOUD cis instance-set ${CIS_INSTANCE}
+  RUN_IBMCLOUD cis domains --output JSON
+  domain_id=$(echo ${CMD_OUT} | jq -r ".[]|select(.name == \"${DOMAIN_NAME}\").id")
+  if [[ -z "${domain_id}" ]]; then
+    echo "${DOMAIN_NAME} not found"
+  else
+    echo "${DOMAIN_NAME} found with id: ${domain_id}"
+    RUN_IBMCLOUD cis dns-records ${domain_id} --output JSON
+    records_json=${CMD_OUT}
+    for record in *.apps api-int api;do
+      record_name="${record}.${CLUSTER_NAME}.${DOMAIN_NAME}"
+      echo "deleting ${record_name}"
+      record_id=$(echo ${records_json} | jq -r ".[]|select(.name == \"${record_name}\").id")
+      if [[ -z "${record_id}" ]]; then
+        echo "${record_name}  not found"
+      else
+        echo "${record_name} found with id: ${record_id}, deleting..."
+        RUN_IBMCLOUD cis dns-record-delete ${domain_id} ${record_id}
+      fi
+    done
+  fi
+}
+
 function delete_keys() {
   echo "Deleting the SSH key ${INFRA_ID}-key"
   RUN_IBMCLOUD pi key-delete ${INFRA_ID}-key
@@ -160,4 +182,5 @@ delete_lbs
 delete_sg
 delete_virtual_servers
 delete_dns_records
+delete_dns_records_cis
 delete_keys
