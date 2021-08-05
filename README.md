@@ -17,6 +17,7 @@
   export IBMID_PASSWORD=<API_KEY>
   export IBMCLOUD_REGION="lon"
   export IBMCLOUD_ZONE="lon04"
+  export OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE="quay.io/powercloud/openshift-release:4.9-powervs-20210804"
   ```
 - Install config file
 ```yaml
