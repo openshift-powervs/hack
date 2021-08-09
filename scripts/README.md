@@ -4,6 +4,8 @@
 $ IBMCLOUD_API_KEY=<API_KEY> INFRA_ID=<INFRA_ID>  CLUSTER_NAME=<CLUSTER_NAME> ./cleanup.sh
 ```
 
+> Note: INFRA_ID can be found in the <installation_dir>/metadata.json file with key name infraID
+
 example:
 
 ```shell
