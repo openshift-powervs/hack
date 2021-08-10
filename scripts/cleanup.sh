@@ -10,7 +10,7 @@ DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
 CIS_INSTANCE=${CIS_INSTANCE:-"powervs-ipi-cis"}
 
 if [[ -z "${INFRA_ID}" ]]; then
-  echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag"
+  echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag, find this in the <installation_dir>/metadata.json with key name infraID"
   exit
 fi
 
