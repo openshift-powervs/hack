@@ -122,15 +122,17 @@ function delete_virtual_servers() {
     echo "Deleting the vms"
     RUN_IBMCLOUD pi ins --json
     ins_out=${CMD_OUT}
-    for vm in bootstrap master-0 master-1 master-2;do
-      echo "Deleting the ${vm}"
-      instance_id=$(echo "${ins_out}" | jq -r ".Payload.pvmInstances[]|select(.serverName == \"${INFRA_ID}-${vm}\").pvmInstanceID")
-      if [[ -z "${instance_id}" ]]; then
-        echo "$vm not found"
-      else
-        echo "$vm found with ID: ${instance_id}"
-        RUN_IBMCLOUD pi ind "${instance_id}"
+    for vm in bootstrap master-0 master-1 master-2 worker-.*;do
+      echo "Deleting the ${INFRA_ID}-${vm}"
+      instance_ids=$(echo "${ins_out}" | jq -r ".Payload.pvmInstances[]|select(.serverName|test(\"${INFRA_ID}-${vm}\")).pvmInstanceID")
+      if [[ -z ${instance_ids} ]]; then
+        echo "No virtual servers found with ${INFRA_ID}-${vm} pattern"
+        continue
       fi
+      while IFS= read -r id; do
+        echo "deleting vm with $id"
+        RUN_IBMCLOUD pi ind "${id}"
+      done <<< "${instance_ids}"
     done
   fi
 }
