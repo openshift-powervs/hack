@@ -105,7 +105,28 @@ function delete_sg() {
     echo "$sg not found"
   else
     echo "$sg found with ID: ${sg_id}"
-    RUN_IBMCLOUD is security-group-delete "${sg_id}" --force
+    echo "Targets for the SG:"
+    RUN_IBMCLOUD is security-group-targets ${sg_id} --output JSON
+    targets=$(echo "${CMD_OUT}" | jq -r '[.[].id]|join(" ")' )
+    if [[ -n ${targets} ]]; then
+      echo "Removing the targets[${targets}] from the security group"
+      RUN_IBMCLOUD is security-group-target-remove "${sg_id}" ${targets} --force
+    fi
+
+    attempt_num=1
+    max_attempts=10
+    until RUN_IBMCLOUD is security-group-delete "${sg_id}" --force
+    do
+        if (( attempt_num == max_attempts ))
+        then
+            echo "Attempt $attempt_num failed and there are no more attempts left!"
+            return 1
+        else
+            echo "Attempt $attempt_num failed! Trying again in 30 seconds..."
+            ((attempt_num=attempt_num+1))
+            sleep 30
+        fi
+    done
   fi
 }
 
@@ -186,8 +207,8 @@ function delete_keys() {
 
 IBMCLOUD_login
 delete_cos
-delete_lbs
 delete_sg
+delete_lbs
 delete_virtual_servers
 delete_dns_records
 delete_dns_records_cis
