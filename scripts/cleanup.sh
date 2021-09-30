@@ -10,7 +10,7 @@ DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
 CIS_INSTANCE=${CIS_INSTANCE:-"powervs-ipi-cis"}
 
 if [[ -z "${INFRA_ID}" ]]; then
-  echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag"
+  echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag, find this in the <installation_dir>/metadata.json with key name infraID"
   exit
 fi
 
@@ -105,7 +105,28 @@ function delete_sg() {
     echo "$sg not found"
   else
     echo "$sg found with ID: ${sg_id}"
-    RUN_IBMCLOUD is security-group-delete "${sg_id}" --force
+    echo "Targets for the SG:"
+    RUN_IBMCLOUD is security-group-targets ${sg_id} --output JSON
+    targets=$(echo "${CMD_OUT}" | jq -r '[.[].id]|join(" ")' )
+    if [[ -n ${targets} ]]; then
+      echo "Removing the targets[${targets}] from the security group"
+      RUN_IBMCLOUD is security-group-target-remove "${sg_id}" ${targets} --force
+    fi
+
+    attempt_num=1
+    max_attempts=10
+    until RUN_IBMCLOUD is security-group-delete "${sg_id}" --force
+    do
+        if (( attempt_num == max_attempts ))
+        then
+            echo "Attempt $attempt_num failed and there are no more attempts left!"
+            return 1
+        else
+            echo "Attempt $attempt_num failed! Trying again in 30 seconds..."
+            ((attempt_num=attempt_num+1))
+            sleep 30
+        fi
+    done
   fi
 }
 
@@ -122,15 +143,17 @@ function delete_virtual_servers() {
     echo "Deleting the vms"
     RUN_IBMCLOUD pi ins --json
     ins_out=${CMD_OUT}
-    for vm in bootstrap master-0 master-1 master-2;do
-      echo "Deleting the ${vm}"
-      instance_id=$(echo "${ins_out}" | jq -r ".Payload.pvmInstances[]|select(.serverName == \"${INFRA_ID}-${vm}\").pvmInstanceID")
-      if [[ -z "${instance_id}" ]]; then
-        echo "$vm not found"
-      else
-        echo "$vm found with ID: ${instance_id}"
-        RUN_IBMCLOUD pi ind "${instance_id}"
+    for vm in bootstrap master-0 master-1 master-2 worker-.*;do
+      echo "Deleting the ${INFRA_ID}-${vm}"
+      instance_ids=$(echo "${ins_out}" | jq -r ".Payload.pvmInstances[]|select(.serverName|test(\"${INFRA_ID}-${vm}\")).pvmInstanceID")
+      if [[ -z ${instance_ids} ]]; then
+        echo "No virtual servers found with ${INFRA_ID}-${vm} pattern"
+        continue
       fi
+      while IFS= read -r id; do
+        echo "deleting vm with $id"
+        RUN_IBMCLOUD pi ind "${id}"
+      done <<< "${instance_ids}"
     done
   fi
 }
@@ -184,8 +207,8 @@ function delete_keys() {
 
 IBMCLOUD_login
 delete_cos
-delete_lbs
 delete_sg
+delete_lbs
 delete_virtual_servers
 delete_dns_records
 delete_dns_records_cis
