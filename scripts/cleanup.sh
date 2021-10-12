@@ -8,6 +8,7 @@ REGION=${IBM_REGION:-"eu-gb"}
 POWERVS_SERVICE_INSTANCE=${POWERVS_SERVICE_INSTANCE:-"powervs-ipi-lon04"}
 DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
 CIS_INSTANCE=${CIS_INSTANCE:-"powervs-ipi-cis"}
+DELETE_FUNCS=${DELETE_FUNCS:-"delete_cos delete_sg delete_lbs delete_virtual_servers delete_dns_records delete_dns_records_cis delete_keys"}
 
 if [[ -z "${INFRA_ID}" ]]; then
   echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag, find this in the <installation_dir>/metadata.json with key name infraID"
@@ -46,10 +47,11 @@ function RUN_IBMCLOUD() {
   fi
 }
 
-for plugin in infrastructure-service power-iaas cloud-internet-services;do
+for plugin in infrastructure-service power-iaas cloud-internet-services; do
   echo "checking plugin: ${plugin}..."
 
-  if ! RUN_IBMCLOUD plugin show ${plugin}; then
+  RUN_IBMCLOUD plugin show ${plugin};
+  if [[ "$?" != "0" ]]; then
     echo "plugin required, please install: ${IBMCLOUD} plugin install ${plugin}"
     exit
   fi
@@ -205,11 +207,16 @@ function delete_keys() {
   RUN_IBMCLOUD pi key-delete "${INFRA_ID}-key"
 }
 
+errors=""
 IBMCLOUD_login
-delete_cos
-delete_sg
-delete_lbs
-delete_virtual_servers
-delete_dns_records
-delete_dns_records_cis
-delete_keys
+for f in $DELETE_FUNCS; do
+    $f
+    if [[ $? != 0 ]]; then
+        errors="${errors} \n issues encountered, or not all items were deleted during ${f}"
+    fi
+done
+
+if [[ "$errors" != "" ]]; then
+    printf "errors during cleanup for ${INFRA_ID}"
+    printf "$errors\n"
+fi
