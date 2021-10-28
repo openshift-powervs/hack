@@ -1,8 +1,16 @@
 Instructions for dhcp server for powervs static network:
 
-Create a vm with both public and private network(select .2 as ip address so that we can same for the gateway as well
+## Prereq:
 
-Download the pvsadm from https://github.com/ppc64le-cloud/pvsadm/releases/tag/v0.1.3 into /usr/loca/bin path
+1. Create a vm with both public and private network(select .2 as ip address so that we can same for the gateway as well
+
+2. Download the pvsadm from https://github.com/ppc64le-cloud/pvsadm/releases/tag/v0.1.3 into /usr/loca/bin path
+
+3. Install the dhcp server: 
+
+```shell
+$ yum install -y dhcp-server
+```
 
 ```
 $ cat /etc/systemd/system/dhcpd-sync.service
