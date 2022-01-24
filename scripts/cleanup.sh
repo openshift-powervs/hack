@@ -8,7 +8,7 @@ REGION=${IBM_REGION:-"eu-gb"}
 POWERVS_SERVICE_INSTANCE=${POWERVS_SERVICE_INSTANCE:-"powervs-ipi-lon04"}
 DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
 CIS_INSTANCE=${CIS_INSTANCE:-"powervs-ipi-cis"}
-DELETE_FUNCS=${DELETE_FUNCS:-"delete_cos delete_sg delete_lbs delete_virtual_servers delete_image delete_dns_records delete_dns_records_cis delete_keys"}
+DELETE_FUNCS=${DELETE_FUNCS:-"delete_cos delete_lbs delete_virtual_servers delete_sg delete_image delete_dns_records_cis delete_keys"}
 
 if [[ -z "${INFRA_ID}" ]]; then
   echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag, find this in the <installation_dir>/metadata.json with key name infraID"
@@ -171,23 +171,6 @@ function delete_image() {
     echo "Image found with imageID: ${boot_image_id}"
     RUN_IBMCLOUD pi imgd "${boot_image_id}"
   fi
-}
-
-function delete_dns_records() {
-  echo "Deleting the DNS records from Classic Infrastructure(Softlayer)"
-  RUN_IBMCLOUD sl dns record-list "${DOMAIN_NAME}" --output JSON
-  dns_json=${CMD_OUT}
-  for record in *.apps api-int api;do
-    host="${record}.${CLUSTER_NAME}"
-    echo "deleting the record ${record}.${CLUSTER_NAME}"
-    domain_id=$(echo "${dns_json}" | jq -r ".[]|select(.host == \"${host}\").id")
-    if [[ -z "${domain_id}" ]]; then
-      echo "$host not found"
-    else
-      echo "$host found with domainID: ${domain_id}"
-      RUN_IBMCLOUD sl dns record-remove "${domain_id}"
-    fi
-  done
 }
 
 function delete_dns_records_cis() {
