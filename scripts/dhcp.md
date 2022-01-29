@@ -39,6 +39,15 @@ export IBMCLOUD_API_KEY=<insert_valid_api_key>
 pvsadm dhcp-sync --instance-id e449d86e-c3a0-4c07-959e-8557fdf55482 --network-id daf2b616-542b-47ed-8cec-ceaec1e90f4d --gateway 192.168.151.2 --nameservers 8.8.8.8,8.8.4.4
 ```
 
+4. Enable the service
+```shell
+systemctl enable dhcpd-sync
+```
+5. Start the service
+```shell
+systemctl start dhcpd-sync
+```
+
 **SNAT instructions:**
 
 ```
