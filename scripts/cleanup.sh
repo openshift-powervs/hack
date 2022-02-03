@@ -164,7 +164,7 @@ function delete_image() {
   echo "Deleting boot image"
 
   RUN_IBMCLOUD pi imgs --json
-  boot_image_id=$(echo "${CMD_OUT}" | jq -r ".Payload.images[]|select(.name==\"${INFRA_ID}-boot-image\").imageID")
+  boot_image_id=$(echo "${CMD_OUT}" | jq -r ".Payload.images[]|select(.name==\"rhcos-${INFRA_ID}\").imageID")
   if [[ -z "${boot_image_id}" ]]; then
     echo "${INFRA_ID}-boot-image was not found"
   else
