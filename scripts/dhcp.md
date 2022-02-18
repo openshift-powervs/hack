@@ -68,8 +68,10 @@ iptables -A FORWARD -i env3 -j ACCEPT
 iptables -A FORWARD -o env3 -j ACCEPT
 
 ethtool --offload env3 rx off tx off
+ethtool -K env2 tso off
 ethtool -K env3 tso off
 ethtool -K env3 gso off
 
 ip route add 10.242.64.0/24 via 192.168.151.1 dev env3
+ip route add 10.241.64.0/24 via 192.168.153.1 dev env3
 ```
