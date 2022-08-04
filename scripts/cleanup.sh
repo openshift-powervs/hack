@@ -8,7 +8,8 @@ REGION=${IBM_REGION:-"eu-gb"}
 POWERVS_SERVICE_INSTANCE=${POWERVS_SERVICE_INSTANCE:-"powervs-ipi-lon04"}
 DOMAIN_NAME=${DOMAIN_NAME:-"scnl-ibm.com"}
 CIS_INSTANCE=${CIS_INSTANCE:-"powervs-ipi-cis"}
-DELETE_FUNCS=${DELETE_FUNCS:-"delete_cos delete_lbs delete_virtual_servers delete_sg delete_image delete_dns_records_cis delete_keys"}
+#DELETE_FUNCS=${DELETE_FUNCS:-"delete_cos delete_lbs delete_virtual_servers delete_sg delete_image delete_dns_records_cis delete_keys"}
+DELETE_FUNCS=${DELETE_FUNCS:-"delete_cos delete_lbs delete_virtual_servers delete_sg delete_vpcs delete_image delete_dns_records_cis delete_ccons delete_keys delete_dhcp"}
 
 if [[ -z "${INFRA_ID}" ]]; then
   echo "INFRA_ID is not set, please set the INFRA_ID to a valid value to cleanup the resources by that tag, find this in the <installation_dir>/metadata.json with key name infraID"
@@ -201,6 +202,33 @@ function delete_dns_records_cis() {
 function delete_keys() {
   echo "Deleting the SSH key ${INFRA_ID}-key"
   RUN_IBMCLOUD pi key-delete "${INFRA_ID}-key"
+}
+
+function delete_vpcs() {
+  echo "Deleting VPC and VPC Subnet"
+  RUN_IBMCLOUD is vpcs --output JSON
+  vpc_id="$(echo "${CMD_OUT}" | jq -r ".[]|select(.name==\"vpc-${INFRA_ID}\").crn")"
+  RUN_IBMCLOUD is subnet-delete -f "vpc-subnet-${INFRA_ID}" --vpc "${vpc_id}"
+  sleep 2
+  RUN_IBMCLOUD is vpc-delete -f "vpc-${INFRA_ID}"
+}
+
+function delete_dhcp() {
+    dhcp_id=$(cat test/terraform.cluster.tfstate | jq -r ".resources[]|select(.name==\"dhcp_service\")|select(.module==\"module.pi_network\").instances[0].attributes.dhcp_id")
+    ./delete_dhcp.sh $dhcp_id
+}
+
+function delete_ccons() {
+  RUN_IBMCLOUD pi connections --json
+  ccons=${CMD_OUT}
+  echo "deleting the cloud connection cloud-con-${INFRA_ID}"
+  ccon_id=$(echo ${ccons} | jq -r ".Payload.cloudConnections[]|select(.name==\"cloud-con-${INFRA_ID}\").cloudConnectionID")
+  if [[ -z "${ccon_id}" ]]; then
+    echo "cloud-con-${INFRA_ID} not found"
+  else
+    echo "cloud-con-${INFRA_ID} found with ID: ${ccon_id}"
+    RUN_IBMCLOUD pi cond "${ccon_id}"
+  fi
 }
 
 errors=""
